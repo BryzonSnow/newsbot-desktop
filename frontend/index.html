@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NewsBot Local</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen p-8 font-sans">
+
+    <div class="max-w-2xl mx-auto space-y-6">
+        <header class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
+            <h1 class="text-3xl font-bold text-slate-800">NewsBot</h1>
+            <p class="text-slate-500 mt-2">Tu motor personal de noticias en segundo plano.</p>
+            <div class="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                Daemon Activo (Ciclo de 30 min)
+            </div>
+        </header>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <form id="configForm" class="space-y-4">
+                
+                <h2 class="text-lg font-bold text-slate-700 border-b pb-2">Credenciales (BYOK)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">NewsAPI Key</label>
+                        <input type="password" id="newsKey" placeholder="Pega tu API Key de noticias" required
+                            class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">CallMeBot API Key</label>
+                        <input type="password" id="waKey" placeholder="Código de CallMeBot" required
+                            class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <h2 class="text-lg font-bold text-slate-700 border-b pb-2 mt-6">Preferencias</h2>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Tu WhatsApp</label>
+                    <input type="text" id="phone" placeholder="+56912345678" required
+                        class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+        <label class="block text-sm font-medium text-slate-600 mb-1">Tu WhatsApp</label>
+        <input type="text" id="phone" placeholder="+56912345678" required
+            class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+    </div>
+<div>
+    <label class="block text-sm font-medium text-slate-600 mb-1">Intervalo (Minutos)</label>
+    <input type="number" id="intervalo" value="60" min="15" max="1440" required
+        class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+    <p class="text-xs text-orange-600 mt-1 font-semibold">⚠️ CallMeBot gratis permite max 16 mensajes cada 4 horas. Recomendamos 60 min.</p>
+</div>
+</div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Tópicos Globales</label>
+                    <input type="text" id="global" placeholder="Ej: Machine Learning, Robótica" required
+                        class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Tópicos Locales</label>
+                    <input type="text" id="local" placeholder="Ej: Biobío, Concepción" required
+                        class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <button type="submit" 
+                    class="w-full mt-4 bg-slate-800 text-white font-bold py-3 px-4 rounded hover:bg-slate-900 transition-colors">
+                    Guardar e Iniciar Motor
+                </button>
+            </form>
+            <p id="feedback" class="text-sm mt-4 text-center hidden"></p>
+        </div>
+    </div>
+
+    <script type="module">
+        // Importamos las funciones generadas automáticamente por Wails desde Go
+        import { ObtenerConfiguracion, GuardarConfiguracion } from './wailsjs/go/main/App.js';
+
+        const feedback = document.getElementById('feedback');
+
+        // 1. Al abrir la app, cargamos la configuración si existe
+        window.onload = async () => {
+            try {
+                const config = await ObtenerConfiguracion();
+                if (!config.error) {
+                    document.getElementById('phone').value = config.phone || '';
+                    document.getElementById('newsKey').value = config.newsKey || '';
+                    document.getElementById('waKey').value = config.waKey || '';
+                    document.getElementById('global').value = config.global || '';
+                    document.getElementById('local').value = config.local || '';
+                }
+            } catch (err) {
+                console.error("Error cargando config:", err);
+            }
+        };
+
+        // 2. Al enviar el formulario, guardamos en la BD de Go local
+        document.getElementById('configForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const phone = document.getElementById('phone').value.trim();
+            const newsKey = document.getElementById('newsKey').value.trim();
+            const waKey = document.getElementById('waKey').value.trim();
+            const global = document.getElementById('global').value.trim();
+            const local = document.getElementById('local').value.trim();
+
+            try {
+                // Llamamos directamente a la función de Go
+                const respuesta = await GuardarConfiguracion(phone, newsKey, waKey, global, local);
+                
+                feedback.textContent = respuesta;
+                feedback.className = 'text-sm mt-4 text-center font-bold text-green-600 block';
+            } catch (err) {
+                feedback.textContent = '❌ Error al comunicarse con el motor local.';
+                feedback.className = 'text-sm mt-4 text-center font-bold text-red-600 block';
+            }
+
+            setTimeout(() => { feedback.classList.add('hidden'); }, 4000);
+        });
+        window.onload = async () => {
+    try {
+        const config = await ObtenerConfiguracion();
+        if (!config.error) {
+            document.getElementById('phone').value = config.phone || '';
+            document.getElementById('newsKey').value = config.newsKey || '';
+            document.getElementById('waKey').value = config.waKey || '';
+            document.getElementById('global').value = config.global || '';
+            document.getElementById('local').value = config.local || '';
+            document.getElementById('intervalo').value = config.intervalo || 30; // Nuevo
+        }
+    } catch (err) { console.error(err); }
+};
+
+// Al guardar:
+document.getElementById('configForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const phone = document.getElementById('phone').value.trim();
+    const newsKey = document.getElementById('newsKey').value.trim();
+    const waKey = document.getElementById('waKey').value.trim();
+    const global = document.getElementById('global').value.trim();
+    const local = document.getElementById('local').value.trim();
+    const intervalo = parseInt(document.getElementById('intervalo').value); // Parseamos a entero
+
+    try {
+        // Añadimos la variable intervalo a la función
+        const respuesta = await GuardarConfiguracion(phone, newsKey, waKey, global, local, intervalo);
+        feedback.textContent = respuesta;
+        feedback.className = 'text-sm mt-4 text-center font-bold text-green-600 block';
+    } catch (err) {
+        feedback.textContent = '❌ Error al comunicarse con el motor local.';
+        feedback.className = 'text-sm mt-4 text-center font-bold text-red-600 block';
+    }
+    setTimeout(() => { feedback.classList.add('hidden'); }, 4000);
+});
+    </script>
+</body>
+</html>
