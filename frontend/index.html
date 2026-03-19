@@ -12,13 +12,19 @@
         <header class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
             <h1 class="text-3xl font-bold text-slate-800">NewsBot</h1>
             <p class="text-slate-500 mt-2">Tu motor personal de noticias en segundo plano.</p>
-            <div class="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                Daemon Activo (Ciclo de 30 min)
-            </div>
+            <div class="mt-4 flex flex-col items-center gap-3">
+    <div id="statusBadge" class="inline-flex items-center gap-2 px-3 py-1 bg-slate-200 text-slate-700 rounded-full text-xs font-semibold transition-colors">
+        <span class="relative flex h-2 w-2">
+            <span id="statusPing" class="absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75 hidden"></span>
+            <span id="statusDot" class="relative inline-flex rounded-full h-2 w-2 bg-slate-500"></span>
+        </span>
+        <span id="statusText">Motor Pausado</span>
+    </div>
+
+    <button id="btnToggleMotor" onclick="toggleMotor()" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg shadow-sm transition-colors">
+        ▶️ Iniciar Motor
+    </button>
+</div>
         </header>
 
         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -39,12 +45,7 @@
                 </div>
 
                 <h2 class="text-lg font-bold text-slate-700 border-b pb-2 mt-6">Preferencias</h2>
-                <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Tu WhatsApp</label>
-                    <input type="text" id="phone" placeholder="+56912345678" required
-                        class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
     <div>
         <label class="block text-sm font-medium text-slate-600 mb-1">Tu WhatsApp</label>
         <input type="text" id="phone" placeholder="+56912345678" required
@@ -69,9 +70,9 @@
                 </div>
 
                 <button type="submit" 
-                    class="w-full mt-4 bg-slate-800 text-white font-bold py-3 px-4 rounded hover:bg-slate-900 transition-colors">
-                    Guardar e Iniciar Motor
-                </button>
+    class="w-full mt-4 bg-slate-800 text-white font-bold py-3 px-4 rounded hover:bg-slate-900 transition-colors">
+    Guardar Configuración
+</button>
             </form>
             <p id="feedback" class="text-sm mt-4 text-center hidden"></p>
         </div>
@@ -79,7 +80,9 @@
 
     <script type="module">
         // Importamos las funciones generadas automáticamente por Wails desde Go
-        import { ObtenerConfiguracion, GuardarConfiguracion } from './wailsjs/go/main/App.js';
+        import { ObtenerConfiguracion, GuardarConfiguracion, CambiarEstadoMotor } from './wailsjs/go/main/App.js';
+
+        let motorActivo = false;
 
         const feedback = document.getElementById('feedback');
 
@@ -158,6 +161,55 @@ document.getElementById('configForm').addEventListener('submit', async (e) => {
     }
     setTimeout(() => { feedback.classList.add('hidden'); }, 4000);
 });
+
+window.toggleMotor = async () => {
+    const nuevoEstado = !motorActivo;
+    
+    try {
+        const respuesta = await CambiarEstadoMotor(nuevoEstado);
+        
+        if (respuesta === "ERROR_CREDENCIALES") {
+            const feedback = document.getElementById('feedback');
+            feedback.textContent = '⚠️ No puedes iniciar el motor sin configurar tus credenciales primero.';
+            feedback.className = 'text-sm mt-4 text-center font-bold text-orange-600 block';
+            setTimeout(() => { feedback.classList.add('hidden'); }, 5000);
+            return; 
+        }
+
+        motorActivo = nuevoEstado;
+        actualizarUI(motorActivo);
+        
+    } catch (err) {
+        console.error("Error cambiando estado:", err);
+    }
+};
+
+function actualizarUI(activo) {
+    const btn = document.getElementById('btnToggleMotor');
+    const badge = document.getElementById('statusBadge');
+    const ping = document.getElementById('statusPing');
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+
+    if (activo) {
+        btn.innerHTML = 'Pausar Motor';
+        btn.className = 'px-6 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm transition-colors';
+        
+        badge.className = 'inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold transition-colors';
+        ping.classList.remove('hidden');
+        ping.classList.add('animate-ping', 'bg-green-400');
+        dot.className = 'relative inline-flex rounded-full h-2 w-2 bg-green-500';
+        text.innerText = 'Motor Activo';
+    } else {
+        btn.innerHTML = 'Iniciar Motor';
+        btn.className = 'px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg shadow-sm transition-colors';
+        
+        badge.className = 'inline-flex items-center gap-2 px-3 py-1 bg-slate-200 text-slate-700 rounded-full text-xs font-semibold transition-colors';
+        ping.classList.add('hidden');
+        dot.className = 'relative inline-flex rounded-full h-2 w-2 bg-slate-500';
+        text.innerText = 'Motor Pausado';
+    }
+}
     </script>
 </body>
 </html>

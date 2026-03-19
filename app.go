@@ -18,11 +18,13 @@ type App struct {
 	ctx      context.Context
 	database *sql.DB
 	reiniciarReloj chan bool 
+	motorActivo    bool
 }
 
 func NewApp() *App {
 	return &App{
 		reiniciarReloj: make(chan bool),
+		motorActivo:    false,
 	}
 }
 
@@ -64,7 +66,27 @@ func (a *App) GuardarConfiguracion(phone, newsKey, waKey, global, local string, 
 	default:
 	}
 
-	return "✅ Configuración guardada. Motor actualizado."
+	return "Configuración guardada. Motor actualizado."
+}
+
+func (a *App) CambiarEstadoMotor(activo bool) string {
+	if activo {
+		// Validamos que existan credenciales antes de encender
+		phone, newsKey, waKey, _, _, _, err := db.ObtenerConfig(a.database)
+		if err != nil || phone == "" || newsKey == "" || waKey == "" {
+			return "ERROR_CREDENCIALES" 
+		}
+
+		a.motorActivo = true
+		select {
+		case a.reiniciarReloj <- true:
+		default:
+		}
+		return "Motor encendido."
+	}
+	
+	a.motorActivo = false
+	return "Motor pausado."
 }
 
 func (a *App) iniciarDaemon() {
@@ -85,7 +107,7 @@ func (a *App) iniciarDaemon() {
 			_, _, _, _, _, nuevoIntervalo, _ := db.ObtenerConfig(a.database)
 			if nuevoIntervalo <= 0 { nuevoIntervalo = 30 }
 			
-			fmt.Printf("🔄 Reiniciando reloj a %d minutos...\n", nuevoIntervalo)
+			fmt.Printf("Reiniciando reloj a %d minutos...\n", nuevoIntervalo)
 			ticker.Reset(time.Duration(nuevoIntervalo) * time.Minute)
 			a.ejecutarCiclo()
 
@@ -96,6 +118,12 @@ func (a *App) iniciarDaemon() {
 }
 
 func (a *App) ejecutarCiclo() {
+
+	if !a.motorActivo {
+		fmt.Println("Reloj hizo tic, pero el motor está pausado.")
+		return
+	}
+
 	phone, newsKey, waKey, global, local, _, err := db.ObtenerConfig(a.database)
 	if err != nil || phone == "" || newsKey == "" || waKey == "" {
 		fmt.Println("Daemon pausado: Faltan credenciales del usuario.")
