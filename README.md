@@ -24,7 +24,7 @@ En lugar de depender de servicios SaaS centralizados con suscripciones costosas,
 
 No necesitas instalar Go ni dependencias complejas.
 
-1.  Ve a la pestaña de [Releases](https://github.com/BryzonSnow/newsbot-desktop/releases/tag/v1.0.0.0) y descarga el archivo `newsbot-desktop.exe`.
+1.  Ve a la pestaña de [Releases](https://github.com/BryzonSnow/newsbot-desktop/releases/tag/v1.0.0.1) y descarga el archivo `newsbot-desktop.exe`.
 2.  Ejecuta la aplicación (Portable, sin instalación).
 3.  En la interfaz, ingresa tu número de WhatsApp y tus APIs gratuitas:
     * **NewsAPI:** Obtén tu llave en [newsapi.org](https://newsapi.org/).
